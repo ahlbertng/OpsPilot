@@ -1,0 +1,32 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    entrypoint: ["/bin/sh", "-c", "sleep 3 && OLLAMA_HOST=ollama:11434 ollama pull qwen2.5-coder:3b"]
+
+  buggy-app:
+    image: python:3.11-slim
+    container_name: buggy-app
+    volumes:
+      - ./buggy_app.py:/app/buggy_app.py
+    command: python /app/buggy_app.py
+
+  sre-crew:
+    build: ./agent_crew
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+      buggy-app:
+        condition: service_started
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./output:/output
+
+volumes:
+  ollama_data:
